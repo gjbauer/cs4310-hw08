@@ -69,11 +69,6 @@ sys_dup(void)
   return fd;
 }
 
-/*void
-sys_setfullystarted(void) {
-	started=1;
-}*/
-
 int
 sys_iostats(void)
 {
@@ -105,9 +100,10 @@ sys_iostats(void)
 	argaddr(1, &ptr);
 	argint(0, &fd);
 	
-	if(fd == 2) {
+	
+	if(fd < 2) {
 		io.read_bytes = 0;
-		io.write_bytes = 6;
+		io.write_bytes = 0;
 	}
 	else if(argfd(0, 0, &f) < 0)
 		return -1;
@@ -126,14 +122,14 @@ uint64
 sys_read(void)
 {
   struct file *f;
-  int n;
+  int n, fd;
   uint64 p;
 
   argaddr(1, &p);
   argint(2, &n);
+  argint(0, &fd);
   if(argfd(0, 0, &f) < 0)
     return -1;
-  //f->read_bytes+=3;
   return fileread(f, p, n);
 }
 
@@ -142,16 +138,16 @@ sys_write(void)
 {
 
   struct file *f;
-  int n;
+  int n, fd;
   uint64 p;
   
   argaddr(1, &p);
   argint(2, &n);
+  argint(2, &fd);
   if(argfd(0, 0, &f) < 0)
     return -1;
 
-  //f->write_bytes+=4;
-  return filewrite(f, p, n);
+  return filewrite(f, p, n, fd);
 }
 
 uint64

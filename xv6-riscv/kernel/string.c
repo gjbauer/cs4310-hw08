@@ -80,13 +80,6 @@ strncpy(char *s, const char *t, int n)
   return os;
 }
 
-/*int
-strncmp(char *s, const char *t, int n)
-{
-  while(n-- > 0 && *s++ == *t++);
-  return (n==0) ? 0 : 1;
-}*/
-
 // No error or bounds checking....
 void
 memncpy(char *s, const char *t, int n)

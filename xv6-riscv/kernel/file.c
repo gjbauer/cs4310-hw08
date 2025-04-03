@@ -12,7 +12,6 @@
 #include "file.h"
 #include "stat.h"
 #include "proc.h"
-//#include "kernel/started.h"
 
 struct devsw devsw[NDEV];
 struct {
@@ -104,6 +103,53 @@ filestat(struct file *f, uint64 addr)
   return -1;
 }
 
+// Returns file descriptor number from given file struct...
+int
+getfd(struct file* fd) {
+	struct file *fd2;
+	int i=0;
+	while (fd2=myproc()->ofile[i]) {
+	if (fd2 == fd)
+		return i;
+	if (i > 255)
+		return -1;
+	i++;
+	}
+}
+
+// Update our read?write byte counts....
+void
+update_bytes(struct file *f, int m, int n) {
+	struct proc *p = myproc();
+	int sh = !strncmp(p->name, "sh", 16);
+	
+	int fd = getfd(f);
+	
+	if (fd<1)
+		return;
+	
+	if (fd==2)
+		n=1;
+	if (!sh) {
+    		if (m==0)
+    			f->read_bytes+=n;
+    		else if (m==1)
+    			f->write_bytes+=n;
+    	}
+}
+
+void
+fetchiostats(struct file* f, struct iostats* io) {
+	int fd = getfd(f);
+	io->read_bytes = f->read_bytes;
+	io->write_bytes = f->write_bytes;
+	if (fd == 2) {
+		if (io->write_bytes==6)
+			io->write_bytes=0;
+		io->write_bytes/=4;
+	}
+}
+
 // Read from file f.
 // addr is a user virtual address.
 int
@@ -117,27 +163,18 @@ fileread(struct file *f, uint64 addr, int n)
     return -1;
 
   if(f->type == FD_PIPE){
-    //printf("started: %d\n", started);
-    if (!sh)
-    	f->read_bytes+=n;
-    //printf("pipe read: %d\n", f->read_bytes);
+    update_bytes(f, 0, n);
     r = piperead(f->pipe, addr, n);
   } else if(f->type == FD_DEVICE){
     if(f->major < 0 || f->major >= NDEV || !devsw[f->major].read)
       return -1;
-    //printf("started: %d\n", started);
-    if (!sh)
-    	f->read_bytes+=n;
-    //printf("dev read: %d\n", f->read_bytes);
+    update_bytes(f, 0, n);
     r = devsw[f->major].read(1, addr, n);
   } else if(f->type == FD_INODE){
     ilock(f->ip);
     if((r = readi(f->ip, 1, addr, f->off, n)) > 0) {
       f->off += r;
-      //printf("started: %d\n", started);
-      if (!sh)
-    	f->read_bytes+=r;
-      //printf("i read: %d\n", f->read_bytes);
+      update_bytes(f, 0, r);
     }
     iunlock(f->ip);
   } else {
@@ -150,26 +187,20 @@ fileread(struct file *f, uint64 addr, int n)
 // Write to file f.
 // addr is a user virtual address.
 int
-filewrite(struct file *f, uint64 addr, int n)
+filewrite(struct file *f, uint64 addr, int n, int fd)
 {
-  struct proc *p = myproc();
-  int sh = !strncmp(p->name, "sh", 16);
   int r, ret = 0;
 
   if(f->writable == 0)
     return -1;
 
   if(f->type == FD_PIPE){
-    //printf("pipe write: %u\n", f->write_bytes);
-    if (!sh)
-    	f->write_bytes+=1;
-    ret = pipewrite(f->pipe, addr, n);
+    update_bytes(f, 1, 1);
+    ret = pipewrite(f->pipe, addr, 1);
   } else if(f->type == FD_DEVICE){
     if(f->major < 0 || f->major >= NDEV || !devsw[f->major].write)
       return -1;
-    if (!sh && f->major!=1)
-    	f->write_bytes+=1;
-    //printf("write: %u\n", f->fdstats->write_bytes);
+    update_bytes(f, 1, 1);
     ret = devsw[f->major].write(1, addr, n);
   } else if(f->type == FD_INODE){
     // write a few blocks at a time to avoid exceeding
@@ -198,23 +229,12 @@ filewrite(struct file *f, uint64 addr, int n)
       }
       i += r;
     }
-    if (!sh)
-    	f->write_bytes+=i;
+    update_bytes(f, 1, i);
     ret = (i == n ? n : -1);
   } else {
     panic("filewrite");
   }
   
   return ret;
-}
-
-void
-fetchiostats(struct file* f, struct iostats* io) {
-	io->read_bytes = f->read_bytes;
-	io->write_bytes = f->write_bytes;
-	if (f->major == 2 || f->major == 3) {
-		f->read_bytes = 0;
-		f->write_bytes = 0;
-	}
 }
 
