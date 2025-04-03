@@ -80,6 +80,22 @@ strncpy(char *s, const char *t, int n)
   return os;
 }
 
+/*int
+strncmp(char *s, const char *t, int n)
+{
+  while(n-- > 0 && *s++ == *t++);
+  return (n==0) ? 0 : 1;
+}*/
+
+// No error or bounds checking....
+void
+memncpy(char *s, const char *t, int n)
+{
+  int i;
+  for(i=0; i < n && (s[i] = t[i]) != 0; i++);
+  for(; i < n; i++) s[i] = 0;
+}
+
 // Like strncpy but guaranteed to NUL-terminate.
 char*
 safestrcpy(char *s, const char *t, int n)

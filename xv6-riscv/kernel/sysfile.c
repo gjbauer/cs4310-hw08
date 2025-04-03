@@ -15,6 +15,7 @@
 #include "sleeplock.h"
 #include "file.h"
 #include "fcntl.h"
+#include "kernel/started.h"
 
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
@@ -68,6 +69,11 @@ sys_dup(void)
   return fd;
 }
 
+/*void
+sys_setfullystarted(void) {
+	started=1;
+}*/
+
 int
 sys_iostats(void)
 {
@@ -89,6 +95,7 @@ sys_iostats(void)
 	 *  }
 	 *}
 	 */
+	//printf("iostats\n");
 	struct proc *p = myproc(); 
 	struct file *f;
 	uint64 ptr;
@@ -107,7 +114,7 @@ sys_iostats(void)
 	else {
 		fetchiostats(f, &io);
 	}
-	err = copyout(p->pagetable, ptr, (char*)&io, sizeof(io));
+	err = copyout(p->pagetable, ptr, (char*)&io, sizeof(io));	// Implemented a copyout using our own memncpy instead of memmove to avoid pointers persisting and messing up tests..
 	if(err == -1) {
 		// error, something went wrong, return an error or panic
 		panic("iostats");
@@ -133,6 +140,7 @@ sys_read(void)
 uint64
 sys_write(void)
 {
+
   struct file *f;
   int n;
   uint64 p;

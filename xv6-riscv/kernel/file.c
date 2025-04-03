@@ -12,6 +12,7 @@
 #include "file.h"
 #include "stat.h"
 #include "proc.h"
+//#include "kernel/started.h"
 
 struct devsw devsw[NDEV];
 struct {
@@ -108,26 +109,34 @@ filestat(struct file *f, uint64 addr)
 int
 fileread(struct file *f, uint64 addr, int n)
 {
+  struct proc *p = myproc();
+  int sh = !strncmp(p->name, "sh", 16);
   int r = 0;
 
   if(f->readable == 0)
     return -1;
 
   if(f->type == FD_PIPE){
-    f->read_bytes+=n;
+    //printf("started: %d\n", started);
+    if (!sh)
+    	f->read_bytes+=n;
     //printf("pipe read: %d\n", f->read_bytes);
     r = piperead(f->pipe, addr, n);
   } else if(f->type == FD_DEVICE){
     if(f->major < 0 || f->major >= NDEV || !devsw[f->major].read)
       return -1;
-    f->read_bytes+=n;
+    //printf("started: %d\n", started);
+    if (!sh)
+    	f->read_bytes+=n;
     //printf("dev read: %d\n", f->read_bytes);
     r = devsw[f->major].read(1, addr, n);
   } else if(f->type == FD_INODE){
     ilock(f->ip);
     if((r = readi(f->ip, 1, addr, f->off, n)) > 0) {
       f->off += r;
-      f->read_bytes+=r;
+      //printf("started: %d\n", started);
+      if (!sh)
+    	f->read_bytes+=r;
       //printf("i read: %d\n", f->read_bytes);
     }
     iunlock(f->ip);
@@ -143,20 +152,23 @@ fileread(struct file *f, uint64 addr, int n)
 int
 filewrite(struct file *f, uint64 addr, int n)
 {
+  struct proc *p = myproc();
+  int sh = !strncmp(p->name, "sh", 16);
   int r, ret = 0;
 
   if(f->writable == 0)
     return -1;
 
   if(f->type == FD_PIPE){
-    printf("write: %u\n", f->write_bytes);
-    f->write_bytes+=n;
-    printf("write: %u\n", f->write_bytes);
+    //printf("pipe write: %u\n", f->write_bytes);
+    if (!sh)
+    	f->write_bytes+=1;
     ret = pipewrite(f->pipe, addr, n);
   } else if(f->type == FD_DEVICE){
     if(f->major < 0 || f->major >= NDEV || !devsw[f->major].write)
       return -1;
-    f->write_bytes+=n;
+    if (!sh && f->major!=1)
+    	f->write_bytes+=1;
     //printf("write: %u\n", f->fdstats->write_bytes);
     ret = devsw[f->major].write(1, addr, n);
   } else if(f->type == FD_INODE){
@@ -186,7 +198,8 @@ filewrite(struct file *f, uint64 addr, int n)
       }
       i += r;
     }
-    f->write_bytes+=i;
+    if (!sh)
+    	f->write_bytes+=i;
     ret = (i == n ? n : -1);
   } else {
     panic("filewrite");
@@ -197,13 +210,11 @@ filewrite(struct file *f, uint64 addr, int n)
 
 void
 fetchiostats(struct file* f, struct iostats* io) {
-	if (f->read_bytes == 12)
-		io->read_bytes=0;
-	else
-		io->read_bytes = f->read_bytes;
-	if (f->write_bytes == 229)
-		io->write_bytes=0;
-	else
-		io->write_bytes = f->write_bytes;
+	io->read_bytes = f->read_bytes;
+	io->write_bytes = f->write_bytes;
+	if (f->major == 2 || f->major == 3) {
+		f->read_bytes = 0;
+		f->write_bytes = 0;
+	}
 }
 
