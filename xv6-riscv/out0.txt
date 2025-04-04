@@ -1,8 +1,0 @@
-$ test2
-test2
-stats before any output
-stdin stats(0) (r: 0, w: 0) -> 0
-stdout stats(1) (r: 0, w: 0) -> 0
-stderr stats(2) (r: 0, w: 0) -> 0
-test2 done
-$ 
