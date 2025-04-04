@@ -15,11 +15,6 @@
 #include "sleeplock.h"
 #include "file.h"
 #include "fcntl.h"
-#include "kernel/started.h"
-
-#include <stdbool.h>
-
-bool directaccess=false;
 
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
@@ -76,12 +71,6 @@ sys_dup(void)
 /*	-- Our section --	*/
 
 int
-sys_directaccess(void) {
-	directaccess=true;
-	return 0;
-}
-
-int
 sys_iostats(void)
 {
 	/* int
@@ -112,13 +101,12 @@ sys_iostats(void)
 	
 	if(argfd(0, 0, &f) < 0)
 		return -1;
-	else if((fd=getfd(f)) == 0 && directaccess==false) {
+	else if((fd=getfd(f)) == 0) {
 		io.read_bytes = 0;
 		io.write_bytes = 0;
 	}
 	else {
 		fetchiostats(f, &io);
-		directaccess=false;
 		if (fd == 0) {
 			f->read_bytes = 0;
 			f->write_bytes = 0;
