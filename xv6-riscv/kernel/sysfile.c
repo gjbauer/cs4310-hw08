@@ -107,10 +107,6 @@ sys_iostats(void)
 	}
 	else {
 		fetchiostats(f, &io);
-		if (fd == 0) {
-			f->read_bytes = 0;
-			f->write_bytes = 0;
-		}
 	}
 	err = copyout(p->pagetable, ptr, (char*)&io, sizeof(io));	// Implemented a copyout using our own memncpy instead of memmove to avoid pointers persisting and messing up tests..
 	if(err == -1) {
@@ -163,6 +159,8 @@ sys_close(void)
   if(argfd(0, &fd, &f) < 0)
     return -1;
   myproc()->ofile[fd] = 0;
+  f->read_bytes=0;
+  f->write_bytes=0;
   fileclose(f);
   return 0;
 }

@@ -37,8 +37,6 @@ update_bytes(struct file *f, int m, int n) {
 	
 	int fd = getfd(f);
 	
-	if (fd==0)
-		n=1;
 	if (!sh) {
     		if (m==0)
     			f->read_bytes+=n;
