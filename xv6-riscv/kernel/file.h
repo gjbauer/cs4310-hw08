@@ -1,3 +1,4 @@
+int getfd(struct file* fd);
 void fetchiostats(struct file*, struct iostats*);
 struct file {
   enum { FD_NONE, FD_PIPE, FD_INODE, FD_DEVICE } type;

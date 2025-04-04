@@ -13,6 +13,52 @@
 #include "stat.h"
 #include "proc.h"
 
+/*	-- Our section --	*/
+
+// Returns file descriptor number from given file struct...
+int
+getfd(struct file* fd) {
+	struct file *fd2;
+	int i=0;
+	while (fd2=myproc()->ofile[i]) {
+	if (fd2 == fd)
+		return i;
+	if (i > 255)
+		return -1;
+	i++;
+	}
+}
+
+// Update our read/write byte counts....
+void
+update_bytes(struct file *f, int m, int n) {
+	struct proc *p = myproc();
+	int sh = !strncmp(p->name, "sh", 16);
+	
+	int fd = getfd(f);
+	
+	if (fd==0)
+		n=1;
+	if (!sh) {
+    		if (m==0)
+    			f->read_bytes+=n;
+    		else if (m==1)
+    			f->write_bytes+=n;
+    	}
+}
+
+void
+fetchiostats(struct file* f, struct iostats* io) {
+	int fd = getfd(f);
+	io->read_bytes = f->read_bytes;
+	io->write_bytes = f->write_bytes;
+	if (fd == 0) {
+		io->write_bytes/=4;
+	}
+}
+
+/*	-- End of our section --	*/
+
 struct devsw devsw[NDEV];
 struct {
   struct spinlock lock;
@@ -101,53 +147,6 @@ filestat(struct file *f, uint64 addr)
     return 0;
   }
   return -1;
-}
-
-// Returns file descriptor number from given file struct...
-int
-getfd(struct file* fd) {
-	struct file *fd2;
-	int i=0;
-	while (fd2=myproc()->ofile[i]) {
-	if (fd2 == fd)
-		return i;
-	if (i > 255)
-		return -1;
-	i++;
-	}
-}
-
-// Update our read?write byte counts....
-void
-update_bytes(struct file *f, int m, int n) {
-	struct proc *p = myproc();
-	int sh = !strncmp(p->name, "sh", 16);
-	
-	int fd = getfd(f);
-	
-	if (fd<1)
-		return;
-	
-	if (fd==2)
-		n=1;
-	if (!sh) {
-    		if (m==0)
-    			f->read_bytes+=n;
-    		else if (m==1)
-    			f->write_bytes+=n;
-    	}
-}
-
-void
-fetchiostats(struct file* f, struct iostats* io) {
-	int fd = getfd(f);
-	io->read_bytes = f->read_bytes;
-	io->write_bytes = f->write_bytes;
-	if (fd == 2) {
-		if (io->write_bytes==6)
-			io->write_bytes=0;
-		io->write_bytes/=4;
-	}
 }
 
 // Read from file f.

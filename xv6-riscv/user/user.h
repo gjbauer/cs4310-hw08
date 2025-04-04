@@ -23,6 +23,7 @@ char* sbrk(int);
 int sleep(int);
 int uptime(void);
 int getiostats(int fd, struct iostats*);
+void setdirectaccess(void);
 
 // ulib.c
 int stat(const char*, struct stat*);

@@ -17,6 +17,10 @@
 #include "fcntl.h"
 #include "kernel/started.h"
 
+#include <stdbool.h>
+
+bool directaccess=false;
+
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
 static int
@@ -69,6 +73,14 @@ sys_dup(void)
   return fd;
 }
 
+/*	-- Our section --	*/
+
+int
+sys_directaccess(void) {
+	directaccess=true;
+	return 0;
+}
+
 int
 sys_iostats(void)
 {
@@ -90,7 +102,6 @@ sys_iostats(void)
 	 *  }
 	 *}
 	 */
-	//printf("iostats\n");
 	struct proc *p = myproc(); 
 	struct file *f;
 	uint64 ptr;
@@ -98,17 +109,20 @@ sys_iostats(void)
 	int err, fd;
 
 	argaddr(1, &ptr);
-	argint(0, &fd);
 	
-	
-	if(fd < 2) {
+	if(argfd(0, 0, &f) < 0)
+		return -1;
+	else if((fd=getfd(f)) == 0 && directaccess==false) {
 		io.read_bytes = 0;
 		io.write_bytes = 0;
 	}
-	else if(argfd(0, 0, &f) < 0)
-		return -1;
 	else {
 		fetchiostats(f, &io);
+		directaccess=false;
+		if (fd == 0) {
+			f->read_bytes = 0;
+			f->write_bytes = 0;
+		}
 	}
 	err = copyout(p->pagetable, ptr, (char*)&io, sizeof(io));	// Implemented a copyout using our own memncpy instead of memmove to avoid pointers persisting and messing up tests..
 	if(err == -1) {
@@ -117,6 +131,8 @@ sys_iostats(void)
 	}
 	return 0;
 }
+
+/*	-- End of our section --	*/
 
 uint64
 sys_read(void)
